@@ -4,144 +4,116 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"strconv"
+	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// keyMap defines a set of keybindings. To work for help it must satisfy
-// key.Map. It could also very easily be a map[string]key.Binding.
-type keyMap struct {
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
-	Help  key.Binding
-	Quit  key.Binding
-}
+const (
+	padding  = 2
+	maxWidth = 800
+)
 
-// ShortHelp returns keybindings to be shown in the mini help view. It's part
-// of the key.Map interface.
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
-}
+var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 
-// FullHelp returns keybindings for the expanded help view. It's part of the
-// key.Map interface.
-func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right}, // first column
-		{k.Help, k.Quit},                // second column
-	}
-}
-
-var keys = keyMap{
-	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", "move up"),
-	),
-	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "move down"),
-	),
-	Left: key.NewBinding(
-		key.WithKeys("left", "h"),
-		key.WithHelp("←/h", "move left"),
-	),
-	Right: key.NewBinding(
-		key.WithKeys("right", "l"),
-		key.WithHelp("→/l", "move right"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "toggle help"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("q", "esc", "ctrl+c"),
-		key.WithHelp("q", "quit"),
-	),
-}
-
-type model struct {
-	keys       keyMap
-	help       help.Model
-	inputStyle lipgloss.Style
-	lastKey    string
-	quitting   bool
-}
-
-func newModel() model {
-	return model{
-		keys:       keys,
-		help:       help.New(),
-		inputStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#FF75B7")),
-	}
-}
-
-func (m model) Init() tea.Cmd {
-	return nil
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		// If we set a width on the help menu it can gracefully truncate
-		// its view as needed.
-		m.help.Width = msg.Width
-
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keys.Up):
-			m.lastKey = "↑"
-		case key.Matches(msg, m.keys.Down):
-			m.lastKey = "↓"
-		case key.Matches(msg, m.keys.Left):
-			m.lastKey = "←"
-		case key.Matches(msg, m.keys.Right):
-			m.lastKey = "→"
-		case key.Matches(msg, m.keys.Help):
-			m.help.ShowAll = !m.help.ShowAll
-		case key.Matches(msg, m.keys.Quit):
-			m.quitting = true
-			return m, tea.Quit
-		}
-	}
-
-	return m, nil
-}
-
-func (m model) View() string {
-	if m.quitting {
-		return "Bye!\n"
-	}
-
-	var status string
-	if m.lastKey == "" {
-		status = "Waiting for input..."
-	} else {
-		status = "You chose: " + m.inputStyle.Render(m.lastKey)
-	}
-
-	helpView := m.help.View(m.keys)
-	height := 8 - strings.Count(status, "\n") - strings.Count(helpView, "\n")
-
-	return "\n" + status + strings.Repeat("\n", height) + helpView
-}
-
+// main entry point
 func main() {
-	if os.Getenv("HELP_DEBUG") != "" {
-		f, err := tea.LogToFile("debug.log", "help")
+    //startTime := time.Now()
+	// Process arguments
+	taskText := ""
+	duration := 0
+	var (err error)
+	if len(os.Args) > 2 {
+		taskText = os.Args[2]
+		duration, err = strconv.Atoi(os.Args[1])
 		if err != nil {
-			fmt.Println("Couldn't open a file for logging:", err)
+			fmt.Printf("Error: '%s' is not a valid integer.\n", os.Args[1])
 			os.Exit(1)
 		}
-		defer f.Close() // nolint:errcheck
+	} else {
+		fmt.Println("Usage: gopomo <minutes> 'Task Text'")
+		os.Exit(2)
 	}
 
-	if _, err := tea.NewProgram(newModel()).Run(); err != nil {
-		fmt.Printf("Could not start program :(\n%v\n", err)
+	// Create a model
+	m := model{
+		progress: progress.New(progress.WithDefaultGradient()),
+		taskText: taskText,
+		duration: duration,
+	}
+
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		fmt.Println("Oh no!", err)
 		os.Exit(1)
 	}
+}
+
+type tickMsg time.Time
+
+// model
+type model struct {
+	progress progress.Model
+	taskText string
+	duration int
+    startTime time.Time
+}
+
+// Init method
+func (m model) Init() tea.Cmd {
+	return tickCmd()
+}
+
+// Update method
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		return m, tea.Quit
+    // Window size changed
+	case tea.WindowSizeMsg:
+		m.progress.Width = msg.Width - padding*2 - 4
+		if m.progress.Width > maxWidth {
+			m.progress.Width = maxWidth
+		}
+		return m, nil
+
+    // Time based update
+	case tickMsg:
+		if m.progress.Percent() == 1.0 {
+			return m, tea.Quit
+		}
+
+		// Note that you can also use progress.Model.SetPercent to set the
+		// percentage value explicitly, too.
+		cmd := m.progress.IncrPercent(0.25)
+		return m, tea.Batch(tickCmd(), cmd)
+
+	// FrameMsg is sent when the progress bar wants to animate itself
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		return m, cmd
+
+	default:
+		return m, nil
+	}
+}
+
+// View method
+func (m model) View() string {
+	pad := strings.Repeat(" ", padding)
+	return "\n" +
+//		pad + m.duration + "\n" +
+		pad + m.taskText + "\n" +
+		pad + m.progress.View() + "\n\n" +
+		pad + helpStyle("Press any key to quit")
+}
+
+// Tick command.  Called once during init to schedule the first tick and then again when the tick is received in the update function.
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second/8, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
