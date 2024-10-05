@@ -21,7 +21,7 @@ var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 
 // main entry point
 func main() {
-    //startTime := time.Now()
+    startTime := time.Now()
 	// Process arguments
 	taskText := ""
 	duration := 0
@@ -43,6 +43,7 @@ func main() {
 		progress: progress.New(progress.WithDefaultGradient()),
 		taskText: taskText,
 		duration: duration,
+		startTime: startTime,
 	}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
@@ -68,6 +69,9 @@ func (m model) Init() tea.Cmd {
 
 // Update method
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	currentTime := time.Now()
+	elapsedSeconds := currentTime.Sub(m.startTime).Seconds()
+	totalSeconds := 60.0 * m.duration
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		return m, tea.Quit
@@ -87,7 +91,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Note that you can also use progress.Model.SetPercent to set the
 		// percentage value explicitly, too.
-		cmd := m.progress.IncrPercent(0.25)
+		cmd := m.progress.SetPercent(elapsedSeconds / float64(totalSeconds))
 		return m, tea.Batch(tickCmd(), cmd)
 
 	// FrameMsg is sent when the progress bar wants to animate itself
