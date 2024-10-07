@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"math"
 	"strings"
 	"strconv"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 const (
@@ -34,42 +36,6 @@ var (
 
 	url = lipgloss.NewStyle().Foreground(special).Render
 
-	// Tabs.
-
-	activeTabBorder = lipgloss.Border{
-		Top:         "─",
-		Bottom:      " ",
-		Left:        "│",
-		Right:       "│",
-		TopLeft:     "╭",
-		TopRight:    "╮",
-		BottomLeft:  "┘",
-		BottomRight: "└",
-	}
-
-	tabBorder = lipgloss.Border{
-		Top:         "─",
-		Bottom:      "─",
-		Left:        "│",
-		Right:       "│",
-		TopLeft:     "╭",
-		TopRight:    "╮",
-		BottomLeft:  "┴",
-		BottomRight: "┴",
-	}
-
-	tab = lipgloss.NewStyle().
-		Border(tabBorder, true).
-		BorderForeground(highlight).
-		Padding(0, 1)
-
-	activeTab = tab.Border(activeTabBorder, true)
-
-	tabGap = tab.
-		BorderTop(false).
-		BorderLeft(false).
-		BorderRight(false)
-
 	// Title.
 
 	titleStyle = lipgloss.NewStyle().
@@ -81,11 +47,6 @@ var (
 			SetString("Lip Gloss")
 
 	descStyle = lipgloss.NewStyle().MarginTop(1)
-
-	infoStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderTop(true).
-			BorderForeground(subtle)
 
 	// Dialog.
 
@@ -110,46 +71,6 @@ var (
 				MarginRight(2).
 				Underline(true)
 
-	// List.
-
-	list = lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, true, false, false).
-		BorderForeground(subtle).
-		MarginRight(2).
-		Height(8).
-		Width(columnWidth + 1)
-
-	listHeader = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderBottom(true).
-			BorderForeground(subtle).
-			MarginRight(2).
-			Render
-
-	listItem = lipgloss.NewStyle().PaddingLeft(2).Render
-
-	checkMark = lipgloss.NewStyle().SetString("✓").
-			Foreground(special).
-			PaddingRight(1).
-			String()
-
-	listDone = func(s string) string {
-		return checkMark + lipgloss.NewStyle().
-			Strikethrough(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"}).
-			Render(s)
-	}
-
-	// Paragraphs/History.
-
-	historyStyle = lipgloss.NewStyle().
-			Align(lipgloss.Left).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(highlight).
-			Margin(1, 3, 0, 0).
-			Padding(1, 2).
-			Height(19).
-			Width(columnWidth)
 
 	// Status Bar.
 
@@ -178,7 +99,7 @@ var (
 
 	// Page.
 
-	docStyle = lipgloss.NewStyle().Padding(1, 2, 1, 2)
+	docStyle = lipgloss.NewStyle().Padding(0, 0, 0, 0)
 )
 var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 
@@ -240,8 +161,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	// Window size changed
 	case tea.WindowSizeMsg:
+	    physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
+        contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
 		m.progress.Width = msg.Width - padding*2 - 4
-		m.progress.Width = 10
+		m.progress.Width = contentWidth
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
 		}
@@ -272,7 +195,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View method
 func (m model) View() string {
-//	physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	doc := strings.Builder{}
 	// Dialog
 	{
@@ -282,22 +205,23 @@ func (m model) View() string {
 //		pad + m.progress.View() + "\n\n" +
 		//okButton := activeButtonStyle.Render("Yes")
 		//cancelButton := buttonStyle.Render("Maybe")
-
-		text := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render(m.taskText)
-		question := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render(m.progress.View())
+        contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.taskText)
+		progress := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.progress.View())
 		//buttons := lipgloss.JoinHorizontal(lipgloss.Top, okButton, cancelButton)
-		ui := lipgloss.JoinVertical(lipgloss.Center, text, question)
+		ui := lipgloss.JoinVertical(lipgloss.Center, text, progress)
 
-		dialog := lipgloss.Place(width, 9,
+		dialog := lipgloss.Place(physicalWidth, 9,
 			lipgloss.Center, lipgloss.Center,
 			dialogBoxStyle.Render(ui),
-			lipgloss.WithWhitespaceChars("猫咪"),
+//			lipgloss.WithWhitespaceChars("猫咪"),
+			lipgloss.WithWhitespaceChars(" "),
 			lipgloss.WithWhitespaceForeground(subtle),
 		)
 
-		doc.WriteString(dialog + "\n\n")
+		doc.WriteString(dialog )
 	}
-	return doc.String()
+	return docStyle.Render(doc.String())
 //	style := lipgloss.NewStyle().
 //		SetString(m.taskText).
 //		Width(50).
@@ -322,12 +246,7 @@ func tickCmd() tea.Cmd {
 }
 
 const (
-	// In real life situations we'd adjust the document to fit the width we've
-	// detected. In the case of this example we're hardcoding the width, and
-	// later using the detected width only to truncate in order to avoid jaggy
-	// wrapping.
 	width = 96
-
 	columnWidth = 30
 )
 
