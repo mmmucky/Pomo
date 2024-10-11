@@ -1,5 +1,10 @@
 package main
 
+// TODO: Time elapsed / remaining
+// TODO: Custom update interval
+// TODO: task/break/task/break loop
+// TODO: Bright background when time is up or when on break
+
 import (
 	"fmt"
 	"os"
@@ -11,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/lucasb-eyer/go-colorful"
 	"golang.org/x/term"
 )
 
@@ -23,7 +29,7 @@ const (
 var (
 	// General.
 
-	subtle    = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
+	subtle	= lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
 	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
 
@@ -44,6 +50,33 @@ var (
 )
 
 //var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
+func colorGrid(xSteps, ySteps int) [][]string {
+	x0y0, _ := colorful.Hex("#F25D94")
+	x1y0, _ := colorful.Hex("#EDFF82")
+	x0y1, _ := colorful.Hex("#643AFF")
+	x1y1, _ := colorful.Hex("#14F9D5")
+
+	x0 := make([]colorful.Color, ySteps)
+	for i := range x0 {
+		x0[i] = x0y0.BlendLuv(x0y1, float64(i)/float64(ySteps))
+	}
+
+	x1 := make([]colorful.Color, ySteps)
+	for i := range x1 {
+		x1[i] = x1y0.BlendLuv(x1y1, float64(i)/float64(ySteps))
+	}
+
+	grid := make([][]string, ySteps)
+	for x := 0; x < ySteps; x++ {
+		y0 := x0[x]
+		grid[x] = make([]string, xSteps)
+		for y := 0; y < xSteps; y++ {
+			grid[x][y] = y0.BlendLuv(x1[x], float64(y)/float64(xSteps)).Hex()
+		}
+	}
+
+	return grid
+}
 
 // main entry point
 func main() {
@@ -103,8 +136,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	// Window size changed
 	case tea.WindowSizeMsg:
-	    physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
-        contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
+		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
 		m.progress.Width = msg.Width - padding*2 - 4
 		m.progress.Width = contentWidth
 		if m.progress.Width > maxWidth {
@@ -140,9 +173,27 @@ func (m model) View() string {
 	physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	doc := strings.Builder{}
 
+	// Color grid
+	colors := func() string {
+		colors := colorGrid(physicalWidth-100, 8)
+
+		b := strings.Builder{}
+		for _, x := range colors {
+			for _, y := range x {
+				s := lipgloss.NewStyle().SetString("  ").Background(lipgloss.Color(y))
+				b.WriteString(s.String())
+			}
+			b.WriteRune('\n')
+		}
+
+		return b.String()
+	}()
+
+	doc.WriteString(colors)
+
 	// Dialog
 	{
-        contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
 
 		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.taskText)
 		progress := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.progress.View())
