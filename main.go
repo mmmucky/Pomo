@@ -140,9 +140,13 @@ func (m model) View() string {
 
 	// Dialog
 	{
-		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		currentTime := time.Now()
+		elapsedSeconds := currentTime.Sub(m.startTime)
+		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ")"
+		taskText := m.taskText + " " + elapsedText
 
-		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.taskText)
+		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(taskText)
 		progress := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.progress.View())
 
 		ui := lipgloss.JoinVertical(lipgloss.Center, text, progress)
@@ -150,7 +154,6 @@ func (m model) View() string {
 		dialog := lipgloss.Place(physicalWidth, 9,
 			lipgloss.Center, lipgloss.Center,
 			dialogBoxStyle.Render(ui),
-//			lipgloss.WithWhitespaceChars("猫咪"),
 			lipgloss.WithWhitespaceChars(" "),
 			lipgloss.WithWhitespaceForeground(subtle),
 		)
