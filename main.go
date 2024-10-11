@@ -1,13 +1,18 @@
 package main
 
+// TODO: Time elapsed / remaining
+// TODO: Custom update interval
+// TODO: task/break/task/break loop
+// TODO: Bright background when time is up or when on break
+
 import (
 	"fmt"
 	"os"
 	"math"
 	"strings"
-	"strconv"
 	"time"
 
+	"github.com/spf13/pflag"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -23,7 +28,7 @@ const (
 var (
 	// General.
 
-	subtle    = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
+	subtle	= lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
 	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
 
@@ -43,33 +48,26 @@ var (
 	docStyle = lipgloss.NewStyle().Padding(0, 0, 0, 0)
 )
 
-//var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
-
 // main entry point
 func main() {
-	startTime := time.Now()
 	// Process arguments
-	taskText := ""
-	duration := 0
-	var (err error)
-	if len(os.Args) > 2 {
-		taskText = os.Args[2]
-		duration, err = strconv.Atoi(os.Args[1])
-		if err != nil {
-			fmt.Printf("Error: '%s' is not a valid integer.\n", os.Args[1])
-			os.Exit(1)
-		}
-	} else {
-		fmt.Println("Usage: gopomo <minutes> 'Task Text'")
-		os.Exit(2)
-	}
+	var (
+		taskText string
+		duration  int
+	)
+
+	pflag.StringVarP(&taskText, "text", "t", "Task", "Task text")
+	pflag.IntVarP(&duration, "duration", "d", 10, "Timer duration(minutes)")
+
+	// Parse arguments
+	pflag.Parse()
 
 	// Create a model
 	m := model{
 		progress: progress.New(progress.WithDefaultGradient()),
 		taskText: taskText,
 		duration: duration,
-		startTime: startTime,
+		startTime: time.Now(),
 	}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
@@ -103,8 +101,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	// Window size changed
 	case tea.WindowSizeMsg:
-	    physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
-        contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
+		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
 		m.progress.Width = msg.Width - padding*2 - 4
 		m.progress.Width = contentWidth
 		if m.progress.Width > maxWidth {
@@ -142,7 +140,7 @@ func (m model) View() string {
 
 	// Dialog
 	{
-        contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
+		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
 
 		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.taskText)
 		progress := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.progress.View())
