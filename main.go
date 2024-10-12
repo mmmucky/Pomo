@@ -1,9 +1,12 @@
 package main
 
-// TODO: Time elapsed / remaining
+// TODO: Time remaining
 // TODO: Custom update interval
 // TODO: task/break/task/break loop
 // TODO: Bright background when time is up or when on break
+// TODO: Timer Pause
+// TODO: Option for less distracting colors
+// TODO: timer end audible alarm / notification hook
 
 import (
 	"fmt"
