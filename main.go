@@ -47,6 +47,16 @@ var (
 			BorderRight(true).
 			BorderBottom(true)
 
+	dialogBoxStyleGrey = lipgloss.NewStyle().
+		    //Background(lipgloss.Color("#3498db")). // Change this to whatever background color you like
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#303030")).
+			Padding(0, 0).
+			BorderTop(true).
+			BorderLeft(true).
+			BorderRight(true).
+			BorderBottom(true)
+
 	// Page.
 )
 
@@ -66,7 +76,8 @@ func main() {
 
 	// Create a model
 	m := model{
-		progress: progress.New(progress.WithDefaultGradient()),
+		//progress: progress.New(progress.WithDefaultGradient()),
+		progress: progress.New(progress.WithGradient("#5A56E0", "#EE6FF8")),
 		taskText: taskText,
 		duration: duration,
 		startTime: time.Now(),
@@ -105,7 +116,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
 		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
-		m.progress.Width = msg.Width - padding*2 - 4
 		m.progress.Width = contentWidth
 		if m.progress.Width > maxWidth {
 			m.progress.Width = maxWidth
@@ -168,7 +178,7 @@ func (m model) View() string {
 
 		dialog := lipgloss.Place(w, h,
 			lipgloss.Center, lipgloss.Center,
-			dialogBoxStyle.Render(ui),
+			dialogBoxStyleGrey.Render(ui),
 			lipgloss.WithWhitespaceChars(" "),
 			lipgloss.WithWhitespaceForeground(subtle),
 		)
@@ -180,7 +190,7 @@ func (m model) View() string {
 
 // Tick command.  Called once during init to schedule the first tick and then again when the tick is received in the update function.
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second/8, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
