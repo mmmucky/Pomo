@@ -38,17 +38,16 @@ var (
 	// Dialog.
 
 	dialogBoxStyle = lipgloss.NewStyle().
+		    //Background(lipgloss.Color("#3498db")). // Change this to whatever background color you like
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(1, 0).
+			Padding(0, 0).
 			BorderTop(true).
 			BorderLeft(true).
 			BorderRight(true).
 			BorderBottom(true)
 
 	// Page.
-
-	docStyle = lipgloss.NewStyle().Padding(0, 0, 0, 0)
 )
 
 // main entry point
@@ -138,7 +137,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View method
 func (m model) View() string {
+	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
+
+//	docStyle = lipgloss.NewStyle().Padding(0, 0, 0, 0)
+	docStyle := lipgloss.NewStyle().
+		Width(w).
+		Height(h).
+		Align(lipgloss.Center)
+//		Background(lipgloss.Color("#3498db")). // Change this to whatever background color you like
+//		Foreground(lipgloss.Color("#ffffff")) // Change this to whatever text color you like
+
 	physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
+
 	doc := strings.Builder{}
 
 	// Dialog
@@ -151,17 +161,19 @@ func (m model) View() string {
 		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8))
 		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(taskText)
 		progress := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.progress.View())
+		//text = lipgloss.NewStyle().Render(taskText)
+		//progress = lipgloss.NewStyle().Render(m.progress.View())
 
 		ui := lipgloss.JoinVertical(lipgloss.Center, text, progress)
 
-		dialog := lipgloss.Place(physicalWidth, 9,
+		dialog := lipgloss.Place(w, h,
 			lipgloss.Center, lipgloss.Center,
 			dialogBoxStyle.Render(ui),
 			lipgloss.WithWhitespaceChars(" "),
 			lipgloss.WithWhitespaceForeground(subtle),
 		)
 
-		doc.WriteString(dialog )
+		doc.WriteString( dialog )
 	}
 	return docStyle.Render(doc.String())
 }
