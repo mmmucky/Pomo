@@ -214,21 +214,25 @@ func (m model) View() string {
 		elapsedSeconds := currentTime.Sub(m.startTime)
 		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ")"
 
-		stateText := stateDescriptions[m.state]
-		taskText := m.taskText + " " + elapsedText + " " + fmt.Sprintf("%s", stateText)
-		modeText := modeDescriptions[m.mode]
+		taskText := elapsedText
+		var modeText string
+		if m.mode == PomodoroMode && m.state == BreakState {
+			modeText = "✨ Union Break ✨"
+		} else {
+			modeText = fmt.Sprintf("💪 %s 💪", m.taskText)
+		}
 		//var modeText string
 		//modeText = m.mode ? m.mode == SingleMode : "Single timer"
 
 		contentWidth := int(math.Floor(float64(physicalWidth-4) * 0.8)) // Use 80% of the term, leaving 4 characters for dialog frame and padding
 
-		infoText := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(modeText)
+		timerInfoText := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(modeText)
 		text := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(taskText)
 		progress := lipgloss.NewStyle().Width(contentWidth).Align(lipgloss.Center).Render(m.progress.View())
 		//text = lipgloss.NewStyle().Render(taskText)
 		//progress = lipgloss.NewStyle().Render(m.progress.View())
 
-		ui := lipgloss.JoinVertical(lipgloss.Center, infoText, text, progress)
+		ui := lipgloss.JoinVertical(lipgloss.Center, timerInfoText, text, progress)
 
 		dialog := lipgloss.Place(w, h,
 			lipgloss.Center, lipgloss.Center,
