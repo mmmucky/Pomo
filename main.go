@@ -29,6 +29,38 @@ const (
 	maxWidth = 800
 )
 
+type tickMsg time.Time
+
+type State int
+
+const (
+	TaskState  State = iota // 0
+	BreakState              // 1
+)
+
+// A type to track what type of timer we want.
+type Mode int
+
+const (
+	SingleMode   Mode = iota // One timer, then exit
+	PomodoroMode             // Alternate between task and break
+)
+
+var modeDescriptions = [...]string{
+	"Single timer",
+	"Pomodoro timer",
+}
+
+// model
+type model struct {
+	progress     progress.Model
+	taskText     string
+	taskDuration int
+	startTime    time.Time
+	state        State
+	mode         Mode
+}
+
 // Style definitions.
 var (
 	// General.
@@ -64,15 +96,15 @@ var (
 func main() {
 	// Process arguments
 	var (
-		mode     string
-		modeInt  Mode
-		taskText string
-		duration int
+		mode         string
+		modeInt      Mode
+		taskText     string
+		taskDuration int
 	)
 
 	pflag.StringVarP(&mode, "mode", "m", "single", "Mode: single, pomodoro")
 	pflag.StringVarP(&taskText, "text", "t", "Task", "Task text")
-	pflag.IntVarP(&duration, "duration", "d", 10, "Timer duration(minutes)")
+	pflag.IntVarP(&taskDuration, "taskduration", "d", 10, "task duration(minutes)")
 
 	// Parse arguments
 	pflag.Parse()
@@ -88,51 +120,22 @@ func main() {
 	// Create a model
 	m := model{
 		//progress: progress.New(progress.WithDefaultGradient()),
-		progress:  progress.New(progress.WithGradient("#5A56E0", "#EE6FF8")),
-		taskText:  taskText,
-		duration:  duration,
-		startTime: time.Now(),
-		state:     TaskState,
-		mode:      modeInt,
+		progress:     progress.New(progress.WithGradient("#5A56E0", "#EE6FF8")),
+		taskText:     taskText,
+		taskDuration: taskDuration,
+		startTime:    time.Now(),
+		state:        TaskState, // Start with a task timer
+		mode:         modeInt,
 	}
 
+	// Start Bubble Tea
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Oh no!", err)
 		os.Exit(1)
 	}
 }
 
-type tickMsg time.Time
-
-type State int
-
-const (
-	TaskState  State = iota // 0
-	BreakState              // 1
-)
-
-// A type to track what type of timer we want.
-type Mode int
-
-const (
-	SingleMode   Mode = iota // One timer, then exit
-	PomodoroMode             // Alternate between task and break
-)
-
-var modeDescriptions = [...]string{
-	"Single timer",
-	"Pomodoro timer",
-}
-
-// model
-type model struct {
-	progress  progress.Model
-	taskText  string
-	duration  int
-	startTime time.Time
-	state     State
-	mode      Mode
-}
+// Bubble Tea functions
 
 // Init method
 func (m model) Init() tea.Cmd {
@@ -142,8 +145,11 @@ func (m model) Init() tea.Cmd {
 // Update method
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	// Key press
 	case tea.KeyMsg:
+		// TODO: Allow user to skip this timer rather than just quitting.
 		return m, tea.Quit
+
 	// Window size changed
 	case tea.WindowSizeMsg:
 		physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
@@ -156,17 +162,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Time based update
 	case tickMsg:
-		if m.progress.Percent() == 1.0 {
-			if m.mode == PomodoroMode {
+		// Check if timer is complete.
+		if m.progress.Percent() >= 1.0 {
+			if m.mode == SingleMode {
 				return m, tea.Quit
 			} else {
-				m.startTime = time.Now()
+				m.endPomodoroCycle()
 			}
 		}
 		currentTime := time.Now()
 		elapsedSeconds := currentTime.Sub(m.startTime).Seconds()
-		totalSeconds := 60.0 * m.duration
-		cmd := m.progress.SetPercent(elapsedSeconds / float64(totalSeconds))
+		totalSeconds := 60.0 * m.taskDuration
+		cmd := m.progress.SetPercent(8 * elapsedSeconds / float64(totalSeconds))
 		return m, tea.Batch(tickCmd(), cmd)
 
 	// FrameMsg is sent when the progress bar wants to animate itself
@@ -199,8 +206,9 @@ func (m model) View() string {
 	// Dialog
 	{
 		currentTime := time.Now()
+		startTime := m.startTime
 		elapsedSeconds := currentTime.Sub(m.startTime)
-		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ")"
+		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ") (" + startTime.Format(time.RFC3339) + ")"
 		taskText := m.taskText + " " + elapsedText
 		modeText := modeDescriptions[m.mode]
 		//var modeText string
@@ -226,6 +234,17 @@ func (m model) View() string {
 		doc.WriteString(dialog)
 	}
 	return docStyle.Render(doc.String())
+}
+
+// Start next Pomodoro Cycle
+func (m *model) endPomodoroCycle() {
+	m.startTime = time.Now()
+	// Toggle state between task and break
+	if m.state == TaskState {
+		m.state = BreakState
+	} else {
+		m.state = TaskState
+	}
 }
 
 // Tick command.  Called once during init to schedule the first tick and then again when the tick is received in the update function.
