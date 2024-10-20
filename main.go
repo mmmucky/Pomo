@@ -34,9 +34,14 @@ type tickMsg time.Time
 type State int
 
 const (
-	TaskState  State = iota // 0
-	BreakState              // 1
+	TaskState  State = iota // Task time
+	BreakState              // Break time
 )
+
+var stateDescriptions = [...]string{
+	"Task",
+	"Break",
+}
 
 // A type to track what type of timer we want.
 type Mode int
@@ -206,10 +211,11 @@ func (m model) View() string {
 	// Dialog
 	{
 		currentTime := time.Now()
-		startTime := m.startTime
 		elapsedSeconds := currentTime.Sub(m.startTime)
-		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ") (" + startTime.Format(time.RFC3339) + ")"
-		taskText := m.taskText + " " + elapsedText
+		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ")"
+
+		stateText := stateDescriptions[m.state]
+		taskText := m.taskText + " " + elapsedText + " " + fmt.Sprintf("%s", stateText)
 		modeText := modeDescriptions[m.mode]
 		//var modeText string
 		//modeText = m.mode ? m.mode == SingleMode : "Single timer"
