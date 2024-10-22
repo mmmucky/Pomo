@@ -4,7 +4,6 @@ package main
 // TODO: Erase timer on exit so you don't think you are looking at an active timer when it is stopped
 // TODO: Time remaining
 // TODO: Custom update interval
-// TODO: task/break/task/break loop
 // TODO: Bright background when time is up or when on break
 // TODO: Timer Pause
 // TODO: Option for less distracting colors
@@ -153,7 +152,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Key press
 	case tea.KeyMsg:
 		// TODO: Allow user to skip this timer rather than just quitting.
-		return m, tea.Quit
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		}
+		return m, nil
 
 	// Window size changed
 	case tea.WindowSizeMsg:
@@ -178,7 +181,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		currentTime := time.Now()
 		elapsedSeconds := currentTime.Sub(m.startTime).Seconds()
 		totalSeconds := 60.0 * m.taskDuration
-		cmd := m.progress.SetPercent(8 * elapsedSeconds / float64(totalSeconds))
+		cmd := m.progress.SetPercent(elapsedSeconds / float64(totalSeconds))
 		return m, tea.Batch(tickCmd(), cmd)
 
 	// FrameMsg is sent when the progress bar wants to animate itself
