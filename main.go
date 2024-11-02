@@ -1,5 +1,7 @@
 package main
 
+// TODO Add interface tip to tell user to ^C to exit
+// TODO Gamify: "RAMPAGE mode" when on task and timer is complete...   Record how long user has worked and encourage them to continue their rampage.
 // TODO: Ask for confirmation on exit to prevent accidental timer stop
 // TODO: Erase timer on exit so you don't think you are looking at an active timer when it is stopped
 // TODO: Time remaining
@@ -61,6 +63,7 @@ type model struct {
 	taskText     string
 	taskDuration int
 	startTime    time.Time
+	endTime      time.Time
 	state        State
 	mode         Mode
 }
@@ -128,6 +131,7 @@ func main() {
 		taskText:     taskText,
 		taskDuration: taskDuration,
 		startTime:    time.Now(),
+		endTime:      time.Now().Add(time.Duration(float64(taskDuration) * 60.0 * float64(time.Second))),
 		state:        TaskState, // Start with a task timer
 		mode:         modeInt,
 	}
@@ -215,7 +219,7 @@ func (m model) View() string {
 	{
 		currentTime := time.Now()
 		elapsedSeconds := currentTime.Sub(m.startTime)
-		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ")"
+		elapsedText := "(elapsed: " + elapsedSeconds.Truncate(time.Second).String() + ")" + m.endTime.String()
 
 		taskText := elapsedText
 		var modeText string
