@@ -10,9 +10,11 @@ package main
 // TODO: Timer Pause
 // TODO: Option for less distracting colors
 // TODO: timer end audible alarm / notification hook
+// TODO: Store config in ~/.config
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"strings"
@@ -28,6 +30,7 @@ import (
 const (
 	padding  = 2
 	maxWidth = 800
+	logFile  = "/home/jdempsey/.local/logs/pomo.log"
 )
 
 type tickMsg time.Time
@@ -124,6 +127,21 @@ func main() {
 	default:
 		modeInt = SingleMode
 	}
+	// Configure logging
+
+	// Open the file for writing logs, create if it doesn't exist, append if it does, with permission 0644
+	// TODO: Just don't log if this directory does not exist.
+	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %s", err)
+	}
+	defer file.Close()
+
+	// Create a new logger that writes to the file
+	logger := log.New(file, "LOG: ", log.Ldate|log.Ltime|log.Lshortfile)
+	logger.Println("This is a regular log message.")
+	logger.Printf("Logging %s with %d", "formatted messages", 123)
+
 	// Create a model
 	m := model{
 		//progress: progress.New(progress.WithDefaultGradient()),
